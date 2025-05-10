@@ -66,38 +66,45 @@ except:
 
 
 #Download the pictures
-
-#Create the folder path
+# Create the folder path
 download_folder = os.path.join(os.getcwd(), "Blackjack", "data")
 if not os.path.exists(download_folder):
     os.makedirs(download_folder)
     print(f"Created folder: {download_folder}")
-
-#Wait for the dialog with media items to appear
-dialog = WebDriverWait(driver, 10).until(
+    
+# Wait for the dialog with media items to appear
+dialog = WebDriverWait(driver, 60).until(
     EC.presence_of_element_located((By.XPATH, '//*[@role="dialog"]'))
 )
 
-#Find all media and video items
-try:
-    media_items = WebDriverWait(driver, 20).until(
-        EC.presence_of_all_elements_located(By.XPATH, './/*[@aria-label="image" or @aria-label="video"]'))
-except TimeoutException:
-    print("No media items (images or videos) found within 20 seconds. Exiting.")
-    driver.quit()
+# Try for 30 seconds to find media items
+start_time = time.time()
+media_items = []
+while time.time() - start_time < 60:
+    # Find media items within the dialog
+    media_items = dialog.find_elements(By.XPATH, './/*[@aria-label="image" or @aria-label="video"]')
+    if media_items:  # If media items are found, exit the loop
+        break
+    time.sleep(1)
 
-#How many items to scroll through to download
+# If still no media found after 60 seconds, exit
+if not media_items:
+    print("No media items (images or videos) found after 30 seconds. Exiting.")
+    driver.quit()
+    exit()
+
+# How many items to scroll through to download
 total_items = len(media_items)
 print(f"Found {total_items} media items")
 
 if total_items > 0:
-    media_items[0].click()  #Click the first media item
+    media_items[0].click()  # Click the first media item
     print("Clicked first image")
     time.sleep(10)
 
     for i in range(total_items):
         try:
-            #Wait for image to load
+            # Wait for image to load
             full_img = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, '//img[contains(@src, "https://")]'))
             )
@@ -111,10 +118,6 @@ if total_items > 0:
             print(f"Saved image to {file_path}")
 
             # TODO: Add code to locate and click the "Next" button here
-            # Example placeholder:
-            # next_button = driver.find_element(By.XPATH, '//button[@aria-label="Next"]')
-            # next_button.click()
-            # print("Clicked next button")
 
             time.sleep(1)
 
