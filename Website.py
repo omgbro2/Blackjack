@@ -45,7 +45,7 @@ group = driver.find_element(By.XPATH, f'//span[contains(@title, "{group_name}")]
 group.click()
 print("Chat opened")
 
-# Open group info
+#Open group info
 try:
     element = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.XPATH, f'//div[@id="main"]//span[contains(text(), "{group_name}")]'))
@@ -67,52 +67,59 @@ except:
 
 #Download the pictures
 
-# Folder where you want to save the images
+#Create the folder path
 download_folder = os.path.join(os.getcwd(), "Blackjack", "data")
-
-# Check if the 'data' folder exists, if not create it
 if not os.path.exists(download_folder):
     os.makedirs(download_folder)
     print(f"Created folder: {download_folder}")
 
-# Find all the image thumbnails (with background-image style)
-thumbnails = driver.find_elements(By.XPATH, '//div[contains(@style, "background-image")]')
+#Wait for the dialog with media items to appear
+dialog = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.XPATH, '//*[@role="dialog"]'))
+)
 
-for i, thumb in enumerate(thumbnails):
-    try:
-        thumb.click()
-        print(f"Clicked thumbnail {i+1}")
-        
-        # Wait for the full-size image to load
-        full_img = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, '//img[contains(@src, "https://")]'))
-        )
-        
-        img_url = full_img.get_attribute("src")
-        print(f"Image URL: {img_url}")
+#Find all media and video items
+try:
+    media_items = WebDriverWait(driver, 20).until(
+        EC.presence_of_all_elements_located(By.XPATH, './/*[@aria-label="image" or @aria-label="video"]'))
+except TimeoutException:
+    print("No media items (images or videos) found within 20 seconds. Exiting.")
+    driver.quit()
 
-        # Define the file path to save the image in the 'data' folder
-        file_path = os.path.join(download_folder, f"image_{i+1}.jpg")
+#How many items to scroll through to download
+total_items = len(media_items)
+print(f"Found {total_items} media items")
 
-        # Download the image and save it to the 'data' folder
-        img_data = requests.get(img_url).content
-        with open(file_path, "wb") as f:
-            f.write(img_data)
-        print(f"Image {i+1} saved to {file_path}")
+if total_items > 0:
+    media_items[0].click()  #Click the first media item
+    print("Clicked first image")
+    time.sleep(10)
 
-        # Look for the close button (you can adjust the XPath to fit)
+    for i in range(total_items):
         try:
-            close_button = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//span[@aria-label="Close"]'))  # Or a close button with specific attributes
+            #Wait for image to load
+            full_img = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//img[contains(@src, "https://")]'))
             )
-            close_button.click()
-            print(f"Closed image viewer for image {i+1}")
+            img_url = full_img.get_attribute("src")
+            print(f"[{i+1}/{total_items}] Image URL: {img_url}")
+
+            file_path = os.path.join(download_folder, f"image_{i+1}.jpg")
+            img_data = requests.get(img_url).content
+            with open(file_path, "wb") as f:
+                f.write(img_data)
+            print(f"Saved image to {file_path}")
+
+            # TODO: Add code to locate and click the "Next" button here
+            # Example placeholder:
+            # next_button = driver.find_element(By.XPATH, '//button[@aria-label="Next"]')
+            # next_button.click()
+            # print("Clicked next button")
+
+            time.sleep(1)
+
         except Exception as e:
-            print(f"Close button not found for image {i+1}, trying Escape key.")
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)  # Try ESCAPE if no close button found
-
-        time.sleep(1)
-
-    except Exception as e:
-        print(f"Failed to get image {i+1}: {e}")
-        continue
+            print(f"Error processing item {i+1}: {e}")
+            break
+else:
+    print("No media items found.")
