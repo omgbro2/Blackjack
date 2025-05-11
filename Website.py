@@ -4,10 +4,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.common.keys import Keys
-import requests
 import time
 import os
+
 
 
 #Opens whatsapp in a new browser to be clean.
@@ -64,65 +63,81 @@ try:
 except:
     print("Media not found")
 
+#Wait to sync media
+try:
+    print("Waiting for WhatsApp to finish syncing older messages...")
+    # Wait until the sync message appears
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, '//div[contains(text(), "Syncing older messages.")]'))
+    )
+    # Then wait for it to disappear (sync complete)
+    WebDriverWait(driver, 60).until_not(
+        EC.presence_of_element_located((By.XPATH, '//div[contains(text(), "Syncing older messages.")]'))
+    )
+    print("Sync complete. Refreshing page...")
+    #refresh the page so it truly loads
+    driver.refresh()
+except Exception as e:
+    print(f"Sync message not detected or error occurred: {e}")
 
-#Download the pictures
-# Create the folder path
+#Confirms that the page has refreshed
+try:
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located(
+            (By.XPATH, "//img[contains(@src, 'cdn.whatsapp.net')]")
+        )
+    )
+    print("Page refreshed")
+    print("Waiting for anti-macro")
+    time.sleep(10)
+except TimeoutException:
+    print("Refresh failed")
+
+#Opens the blackjack group 2nd time
+print("finding group")
+group_name = "Black balance blackjack"
+group = driver.find_element(By.XPATH, f'//span[contains(@title, "{group_name}")]')
+group.click()
+print("Chat opened 2")
+
+#Open group info 2nd time
+try:
+    element = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, f'//div[@id="main"]//span[contains(text(), "{group_name}")]'))
+    )
+    element.click()
+    print("info opened 2")
+except:
+    print("info Not found 2")
+
+#Open media gallery 2nd time
+try:
+    media_tab = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.XPATH,'//div[contains(@class, "x1fcty0u") and contains(text(), "Media")]')))
+    media_tab.click()
+    print("Media clicked 2")
+except:
+    print("Media not found 2")
+
+#Create the data folder to store images
 download_folder = os.path.join(os.getcwd(), "Blackjack", "data")
 if not os.path.exists(download_folder):
     os.makedirs(download_folder)
     print(f"Created folder: {download_folder}")
-    
-# Wait for the dialog with media items to appear
-dialog = WebDriverWait(driver, 60).until(
-    EC.presence_of_element_located((By.XPATH, '//*[@role="dialog"]'))
+
+#Wait for the media dialog to appear
+dialog = WebDriverWait(driver, 15).until(
+    EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "dialog")]'))
 )
 
-# Try for 30 seconds to find media items
-start_time = time.time()
-media_items = []
-while time.time() - start_time < 60:
-    # Find media items within the dialog
-    media_items = dialog.find_elements(By.XPATH, './/*[@aria-label="image" or @aria-label="video"]')
-    if media_items:  # If media items are found, exit the loop
-        break
-    time.sleep(1)
+#Find all items with role="listitem" inside the dialog
+media_items = dialog.find_elements(By.XPATH, './/*[@role="listitem"]')
 
-# If still no media found after 60 seconds, exit
-if not media_items:
-    print("No media items (images or videos) found after 30 seconds. Exiting.")
-    driver.quit()
-    exit()
-
-# How many items to scroll through to download
-total_items = len(media_items)
-print(f"Found {total_items} media items")
-
-if total_items > 0:
-    media_items[0].click()  # Click the first media item
-    print("Clicked first image")
-    time.sleep(10)
-
-    for i in range(total_items):
-        try:
-            # Wait for image to load
-            full_img = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//img[contains(@src, "https://")]'))
-            )
-            img_url = full_img.get_attribute("src")
-            print(f"[{i+1}/{total_items}] Image URL: {img_url}")
-
-            file_path = os.path.join(download_folder, f"image_{i+1}.jpg")
-            img_data = requests.get(img_url).content
-            with open(file_path, "wb") as f:
-                f.write(img_data)
-            print(f"Saved image to {file_path}")
-
-            # TODO: Add code to locate and click the "Next" button here
-
-            time.sleep(1)
-
-        except Exception as e:
-            print(f"Error processing item {i+1}: {e}")
-            break
+#Click the first item
+if media_items:
+    media_items[1].click()
+    print("Clicked the first media item.")
 else:
-    print("No media items found.")
+    print("No media items found to click.")
+
+time.sleep(30)
