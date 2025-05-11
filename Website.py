@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
+import requests
 import time
 import os
 
@@ -125,19 +126,62 @@ if not os.path.exists(download_folder):
     os.makedirs(download_folder)
     print(f"Created folder: {download_folder}")
 
-#Wait for the media dialog to appear
-dialog = WebDriverWait(driver, 15).until(
-    EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "dialog")]'))
+# Wait for the dialog with media items to appear
+print("Looking for dialog")
+dialog = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.XPATH, '//*[@role="dialog"]'))
 )
+print("Dialog found")
 
 #Find all items with role="listitem" inside the dialog
 media_items = dialog.find_elements(By.XPATH, './/*[@role="listitem"]')
 
 #Click the first item
 if media_items:
-    media_items[1].click()
+    media_items[0].click()
     print("Clicked the first media item.")
 else:
     print("No media items found to click.")
 
-time.sleep(30)
+
+index = 1
+while True:
+    try:
+        #Skip if it's a video
+        try:
+            driver.find_element(By.TAG_NAME, "video")
+            previous_button = driver.find_element(By.XPATH, '//div[@aria-label="Previous" and @role="button"]')
+            previous_button.click()
+            index += 1
+            time.sleep(1)
+            continue
+        except:
+            pass
+        #Download the image with dragable"
+
+        # --- TODO download the image ---
+            
+        #Try to click "Previous" button
+        try:
+            previous_button = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, '//div[@aria-label="Previous" and @role="button"]'))
+            )
+
+            if previous_button.get_attribute("aria-disabled") == "true":
+                print("The 'Previous' button is disabled. Exiting loop.")
+                break
+
+            previous_button.click()
+            index += 1
+            time.sleep(1)
+
+        except Exception:
+            print("No more media items or 'Previous' button missing.")
+            break
+
+    except Exception as outer_e:
+        print(f"Unexpected error: {outer_e}")
+        break
+
+print("Image download completed")
+driver.quit()
